@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NodeDash - Power • Control • Scale</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #00d4aa;
+            --border: #30363d;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        /* Navigation */
+        nav {
+            background: rgba(13, 17, 23, 0.95);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 20px;
+        }
+        .logo {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--accent-green);
+        }
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        .nav-links a:hover {
+            color: var(--accent-green);
+        }
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            padding: 120px 0 80px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="%2330363d" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>') repeat;
+            opacity: 0.1;
+        }
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+        .hero h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 4rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, var(--accent-green), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        @keyframes glow {
+            from { text-shadow: 0 0 20px var(--accent-green); }
+            to { text-shadow: 0 0 30px var(--accent-green), 0 0 40px var(--accent-green); }
+        }
+        .hero p {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(45deg, var(--accent-green), var(--accent));
+            color: var(--bg-primary);
+            padding: 15px 40px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 700;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
+        }
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 212, 170, 0.4);
+        }
+        /* Sections */
+        .section {
+            padding: 80px 0;
+        }
+        .section h2 {
+            font-family: 'Orbitron', monospace;
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--accent-green);
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+        .feature-card {
+            background: var(--bg-secondary);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--accent-green);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 212, 170, 0.1);
+        }
+        .feature-icon {
+            font-size: 3rem;
+            color: var(--accent-green);
+            margin-bottom: 1rem;
+        }
+        .feature-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+        .feature-card p {
+            color: var(--text-secondary);
+        }
+        /* Progress */
+        .progress-section {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .progress-bar {
+            background: var(--border);
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 2rem auto;
+            width: 50%;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, var(--accent-green), var(--accent));
+            height: 100%;
+            width: 10%; /* 10% completion */
+            transition: width 1.5s ease;
+            animation: progressAnim 1.5s ease;
+        }
+        @keyframes progressAnim {
+            from { width: 0; }
+        }
+        /* Roadmap */
+        .roadmap-list {
+            list-style: none;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .roadmap-item {
+            background: var(--bg-secondary);
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent);
+            position: relative;
+            transition: box-shadow 0.3s ease;
+        }
+        .roadmap-item:hover {
+            box-shadow: 0 5px 15px rgba(88, 166, 255, 0.1);
+        }
+        .roadmap-item::before {
+            content: '→';
+            position: absolute;
+            left: -1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent-green);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        /* Notice */
+        .notice {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 3rem 0;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(238, 90, 82, 0.3);
+        }
+        /* Preview */
+        .preview-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            display: block;
+            margin: 2rem auto;
+        }
+        .preview-caption {
+            text-align: center;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-top: 1rem;
+        }
+        /* Footer */
+        footer {
+            background: var(--bg-secondary);
+            padding: 3rem 0 1rem;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+        .github-links a {
+            color: var(--accent-green);
+            text-decoration: none;
+            margin: 0 1rem;
+            font-weight: 600;
+        }
+        .github-links a:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .nav-links { display: none; } /* Mobile: hamburger later if needed */
+            .section { padding: 40px 0; }
+            .features-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <div class="logo">NodeDash</div>
+            <ul class="nav-links">
+                <li><a href="#about">Features</a></li>
+                <li><a href="#progress">Progress</a></li>
+                <li><a href="#roadmap">Roadmap</a></li>
+                <li><a href="https://github.com/DragoraLabs/NodeDash-Wings">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>NodeDash Panel</h1>
+                <p>Power • Control • Scale<br>The next-generation open-source server management panel, built for developers who demand customization and performance.</p>
+                <a href="https://github.com/DragoraLabs/NodeDash-Wings" class="cta-button"><i class="fab fa-github"></i> Explore on GitHub</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="about">
+        <div class="container">
+            <h2>Why NodeDash?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-cogs"></i></div>
+                    <h3>Full Customization</h3>
+                    <p>Tailor from A to Z with per-user server limits, dynamic themes, and admin-controlled UI.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                    <h3>Advanced Security</h3>
+                    <p>Granular permissions, admin-only routes, and a secure API layer to protect your infrastructure.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-puzzle-piece"></i></div>
+                    <h3>Modular Plugins</h3>
+                    <p>Expand effortlessly with a scalable backend and plugin architecture for endless possibilities.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-tachometer-alt"></i></div>
+                    <h3>Real-Time Monitoring</h3>
+                    <p>Track resources live with a clean, modern dashboard that scales with your needs.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="progress" style="background: var(--bg-secondary);">
+        <div class="container">
+            <h2>Development Progress</h2>
+            <div class="progress-section">
+                <p style="font-size: 1.2rem; color: var(--text-secondary);">Currently at 10% completion – Just getting started!</p>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <div style="margin-top: 2rem;">
+                    <img src="https://cdn.discordapp.com/attachments/1474372213632143453/1479739382448787668/image.png?ex=69ad2231&is=69abd0b1&hm=2462798e3dded34cb0e476ce6c543456064fa764a481119a1d81319bf04ff653" alt="NodeDash Early Concept UI" class="preview-image">
+                    <p class="preview-caption">Early Concept Dashboard UI – Building the foundation for a powerful interface.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="roadmap">
+        <div class="container">
+            <h2>Roadmap</h2>
+            <ul class="roadmap-list">
+                <li class="roadmap-item"><strong>Core Structure Initialized</strong> – Foundation laid.</li>
+                <li class="roadmap-item">Authentication System – Planning phase.</li>
+                <li class="roadmap-item">Admin Role & Permission Engine – Planning phase.</li>
+                <li class="roadmap-item">Server Management Core – Planning phase.</li>
+                <li class="roadmap-item">UI Framework – Sketching designs.</li>
+                <li class="roadmap-item">Plugin Architecture – Conceptualizing.</li>
+                <li class="roadmap-item">NodeDash Agent – Early ideation.</li>
+            </ul>
+            <h3 style="text-align: center; margin: 3rem 0 1.5rem; color: var(--accent);">Coming Soon</h3>
+            <ul class="roadmap-list">
+                <li class="roadmap-item">Advanced Permission Matrix</li>
+                <li class="roadmap-item">Per-User Custom Server Allocation</li>
+                <li class="roadmap-item">Dynamic Theme Switching</li>
+                <li class="roadmap-item">Real-Time Resource Monitoring</li>
+                <li class="roadmap-item">Secure API Layer</li>
+                <li class="roadmap-item">Production Deployment Build</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section" style="text-align: center;">
+        <div class="container">
+            <div class="notice">
+                🚀 This is an early-stage project in active development. Expect rapid iterations and major updates as we engineer the future of server management.
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 DragoraLabs. All rights reserved. | Built with passion in Ludhiana, Punjab.</p>
+            <div class="github-links">
+                <a href="https://github.com/DragoraLabs/NodeDash.github.io"><i class="fab fa-github"></i> Main Repo</a> |
+                <a href="https://github.com/DragoraLabs/NodeDash-Wings"><i class="fab fa-github"></i> Wings Repo</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
