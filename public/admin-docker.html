@@ -1,0 +1,108 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Docker</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <h2>Docker Image Helper</h2>
+      <p class="small">Paste your Dockerfile or upload it to preview instructions. This does not build images automatically.</p>
+      <label>Dockerfile
+        <textarea id="dockerfile" rows="10" placeholder="FROM node:20-alpine\nWORKDIR /srv\nCOPY . .\nRUN npm install\nCMD [\"node\", \"index.js\"]"></textarea>
+      </label>
+      <div class="row" style="margin-top: 12px;">
+        <button id="explainBtn">Show Build Steps</button>
+      </div>
+      <div id="explainBox" class="code-block" style="display: none; margin-top: 12px;"></div>
+    </section>
+
+    <section class="card">
+      <h3>How to Build a Docker Image</h3>
+      <div class="code-block">
+1. Save your Dockerfile in a folder with your app files.
+2. Open a terminal inside that folder.
+3. Build the image:
+   docker build -t myapp:latest .
+4. Run the image:
+   docker run -d --name myapp -p 3000:3000 myapp:latest
+5. Push to registry (optional):
+   docker tag myapp:latest myregistry/myapp:latest
+   docker push myregistry/myapp:latest
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Game Server Images (Examples)</h3>
+      <div class="code-block">
+Minecraft Paper:
+- Image: itzg/minecraft-server
+- Env: EULA=TRUE TYPE=PAPER
+- Run: docker run -d -e EULA=TRUE -e TYPE=PAPER -p 25565:25565 itzg/minecraft-server
+
+Minecraft Fabric:
+- Image: itzg/minecraft-server
+- Env: EULA=TRUE TYPE=FABRIC
+
+Minecraft Forge:
+- Image: itzg/minecraft-server
+- Env: EULA=TRUE TYPE=FORGE
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Extend the Panel</h3>
+      <div class="code-block">
+Add a new page:
+- Create a new HTML file in /public, for example: my-page.html
+- Add a new route in server.js:
+  app.get('/my-page', (_req, res) => res.sendFile(path.join(publicDir, 'my-page.html')))
+- Add a sidebar link in public/js/api.js (renderHeader)
+
+Add a new button:
+- Edit the target HTML page and add a <button> element
+- Wire it to an API endpoint using NodeWings.api(...)
+
+Custom theme JSON:
+{
+  "id": "my-theme",
+  "name": "My Theme",
+  "palette": {
+    "background": "#0f172a",
+    "sidebar": "#111827",
+    "card": "#1f2937",
+    "text": "#e5e7eb",
+    "accent": "#3b82f6",
+    "button": "#2563eb"
+  }
+}
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    document.getElementById("explainBtn").addEventListener("click", () => {
+      const box = document.getElementById("explainBox");
+      if (box.style.display === "none") {
+        const content = document.getElementById("dockerfile").value.trim();
+        box.textContent = content
+          ? `Dockerfile:\n${content}\n\nBuild: docker build -t my-image:latest .\nRun: docker run -d --name my-container my-image:latest`
+          : "Paste a Dockerfile to see build steps.";
+        box.style.display = "block";
+      } else {
+        box.style.display = "none";
+      }
+    });
+
+    (async () => {
+      const user = await NodeWings.initPage("Admin Docker", { adminOnly: true });
+      if (!user) return;
+    })();
+  </script>
+</body>
+</html>

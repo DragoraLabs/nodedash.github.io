@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Server</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <div class="row" style="justify-content: space-between; align-items: center;">
+        <div>
+          <h2 id="serverTitle">Server</h2>
+          <p class="small" id="serverMeta"></p>
+        </div>
+        <div id="serverStatus"></div>
+      </div>
+    </section>
+
+    <div class="tabs" id="tabBar">
+      <button class="tab active" data-tab="power">Power</button>
+      <button class="tab" data-tab="console">Console</button>
+      <button class="tab" data-tab="resources">Resources</button>
+      <button class="tab" data-tab="files">Files</button>
+      <button class="tab" data-tab="backups">Backups</button>
+      <button class="tab" data-tab="startup">Startup</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </div>
+
+    <section class="card tab-panel active" data-tab-panel="power">
+      <div class="row">
+        <button id="btnStart">Start</button>
+        <button id="btnStop" class="secondary">Stop</button>
+        <button id="btnRestart" class="secondary">Restart</button>
+        <button id="btnKill" class="danger">Kill</button>
+      </div>
+      <p class="small" id="powerStatus"></p>
+    </section>
+
+    <section class="card tab-panel" data-tab-panel="console">
+      <div id="consoleOutput" class="console"></div>
+      <div class="row" style="margin-top: 8px;">
+        <input id="commandInput" type="text" placeholder="Type command, e.g. status" />
+        <button id="sendBtn" style="max-width: 180px;">Send Command</button>
+      </div>
+      <p class="small" id="consoleStatus"></p>
+    </section>
+
+    <section class="card tab-panel" data-tab-panel="resources">
+      <div class="grid two">
+        <article class="card">
+          <h3>CPU Usage</h3>
+          <div id="cpuUsage" class="metric-value">-</div>
+        </article>
+        <article class="card">
+          <h3>RAM Usage</h3>
+          <div id="ramUsage" class="metric-value">-</div>
+        </article>
+        <article class="card">
+          <h3>Disk Usage</h3>
+          <div id="diskUsage" class="metric-value">-</div>
+        </article>
+        <article class="card">
+          <h3>Network</h3>
+          <div id="netUsage" class="metric-value">-</div>
+        </article>
+      </div>
+      <p class="small" id="resourceStatus"></p>
+    </section>
+
+    <section class="card tab-panel" data-tab-panel="files">
+      <div class="row">
+        <div class="pill" id="pathBreadcrumb">/</div>
+        <button id="refreshFilesBtn" class="secondary">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="filesBody"></tbody>
+      </table>
+      <div class="file-grid" style="margin-top: 12px;">
+        <div>
+          <label>Select File</label>
+          <label class="file-input">
+            <input id="uploadFile" type="file" />
+            <span class="file-button">Choose file</span>
+            <span class="file-name" id="uploadName">No file selected</span>
+          </label>
+        </div>
+        <div>
+          <label>Create Folder</label>
+          <input id="mkdirPath" type="text" placeholder="Relative path, e.g. logs" />
+        </div>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="uploadBtn">Upload</button>
+        <button id="mkdirBtn" class="secondary">Create Folder</button>
+      </div>
+      <p class="small" id="filesStatus"></p>
+    </section>
+
+    <section class="card tab-panel" data-tab-panel="backups">
+      <div class="row" style="justify-content: space-between;">
+        <h3>Backups</h3>
+        <button id="createBackupBtn">Create Backup</button>
+      </div>
+      <label>Backup Label (optional)
+        <input id="backupLabel" type="text" placeholder="nightly" />
+      </label>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Size</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="backupsBody"></tbody>
+      </table>
+      <p class="small" id="backupStatus"></p>
+    </section>
+
+    <section class="card tab-panel" data-tab-panel="startup">
+      <div class="grid two">
+        <label>Entry File
+          <input id="startupEntry" type="text" />
+        </label>
+        <label>Start Command (optional)
+          <input id="startupCommand" type="text" />
+        </label>
+        <label>Auto Restart
+          <select id="startupRestart">
+            <option value="true">Enabled</option>
+            <option value="false">Disabled</option>
+          </select>
+        </label>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="saveStartupBtn">Save Startup</button>
+      </div>
+      <p class="small" id="startupStatus"></p>
+    </section>
+
+    <section class="card tab-panel" data-tab-panel="settings">
+      <div class="grid two">
+        <label>RAM Limit (MB)
+          <input id="settingsRam" type="number" min="32" />
+        </label>
+        <label>CPU Limit (%)
+          <input id="settingsCpu" type="number" min="1" />
+        </label>
+        <label>Suspended
+          <select id="settingsSuspended">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+          </select>
+        </label>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="saveSettingsBtn">Save Settings</button>
+        <button id="deleteServerBtn" class="danger">Delete Server</button>
+      </div>
+      <p class="small" id="settingsStatus"></p>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const serverUuid = NodeWings.parseServerUuidFromPath();
+    const escape = NodeWings.escapeHtml;
+    const tabButtons = document.querySelectorAll("[data-tab]");
+    const tabPanels = document.querySelectorAll("[data-tab-panel]");
+    const consoleOutput = document.getElementById("consoleOutput");
+
+    let currentUser = null;
+    let currentServer = null;
+    let currentPath = ".";
+
+    const uploadInput = document.getElementById("uploadFile");
+    const uploadName = document.getElementById("uploadName");
+    if (uploadInput && uploadName) {
+      uploadInput.addEventListener("change", () => {
+        uploadName.textContent = uploadInput.files?.[0]?.name || "No file selected";
+      });
+    }
+
+    function statusTag(status) {
+      if (status === "suspended") {
+        return '<span class="tag muted"><span class="icon icon-x" aria-hidden="true"></span>Suspended</span>';
+      }
+      if (status === "running") {
+        return '<span class="tag ok"><span class="icon icon-check" aria-hidden="true"></span>running</span>';
+      }
+      if (status === "starting" || status === "restarting") {
+        return '<span class="tag muted">' + escape(status || "unknown") + '</span>';
+      }
+      if (status === "stopped") {
+        return '<span class="tag bad"><span class="icon icon-x" aria-hidden="true"></span>stopped</span>';
+      }
+      return '<span class="tag muted">' + escape(status || "unknown") + '</span>';
+    }
+
+    function setTab(name) {
+      tabButtons.forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.tab === name);
+      });
+      tabPanels.forEach((panel) => {
+        panel.classList.toggle("active", panel.dataset.tabPanel === name);
+      });
+    }
+
+    function appendLine(line) {
+      consoleOutput.textContent += line + "\n";
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
+
+    function formatBytes(size) {
+      if (!size) return "0 B";
+      const units = ["B", "KB", "MB", "GB", "TB"];
+      let idx = 0;
+      let value = size;
+      while (value >= 1024 && idx < units.length - 1) {
+        value /= 1024;
+        idx += 1;
+      }
+      return `${value.toFixed(2)} ${units[idx]}`;
+    }
+
+    function updateHeader() {
+      if (!currentServer) return;
+      document.getElementById("serverTitle").textContent = currentServer.name || "Server";
+      const runtimeLabel = currentServer.runtimeVersion
+        ? `${currentServer.runtime} ${currentServer.runtimeVersion}`
+        : currentServer.runtime;
+      document.getElementById("serverMeta").textContent =
+        `UUID ${currentServer.uuid} · Node ${currentServer.nodeId} · ${runtimeLabel}`;
+      const status = currentServer.suspended ? "suspended" : currentServer.status;
+      document.getElementById("serverStatus").innerHTML = statusTag(status);
+      const disabled = currentServer.suspended;
+      document.getElementById("btnStart").disabled = disabled;
+      document.getElementById("btnRestart").disabled = disabled;
+    }
+
+    function applyStartupForm() {
+      document.getElementById("startupEntry").value = currentServer.entryFile || "";
+      document.getElementById("startupCommand").value = currentServer.startCommand || "";
+      document.getElementById("startupRestart").value = currentServer.autoRestart === false ? "false" : "true";
+    }
+
+    function applySettingsForm() {
+      const isAdmin = currentUser?.role === "admin";
+      document.getElementById("settingsRam").value = currentServer.ramLimitMb || 0;
+      document.getElementById("settingsCpu").value = currentServer.cpuLimitPercent || 0;
+      document.getElementById("settingsSuspended").value = currentServer.suspended ? "true" : "false";
+
+      document.getElementById("settingsRam").disabled = !isAdmin;
+      document.getElementById("settingsCpu").disabled = !isAdmin;
+      document.getElementById("settingsSuspended").disabled = !isAdmin;
+      document.getElementById("saveSettingsBtn").style.display = isAdmin ? "inline-flex" : "none";
+      document.getElementById("deleteServerBtn").style.display = isAdmin ? "inline-flex" : "none";
+    }
+
+    async function loadServer() {
+      const payload = await NodeWings.api(`/api/servers/${serverUuid}`);
+      currentServer = payload.server;
+      updateHeader();
+      applyStartupForm();
+      applySettingsForm();
+    }
+
+    async function runPower(action) {
+      const statusEl = document.getElementById("powerStatus");
+      try {
+        statusEl.textContent = `${action} request sent...`;
+        await NodeWings.api(`/api/servers/${serverUuid}/actions/${action}`, { method: "POST" });
+        await loadServer();
+        statusEl.textContent = `${action} completed at ${new Date().toLocaleTimeString()}`;
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    }
+
+    async function loadHistory() {
+      const payload = await NodeWings.api(`/api/servers/${serverUuid}/events?limit=300`);
+      consoleOutput.textContent = "";
+      for (const event of payload.events) {
+        if (event.type === "log") {
+          appendLine(event.payload?.line || "");
+        } else if (event.type === "status") {
+          appendLine(`[status] ${JSON.stringify(event.payload)}`);
+        }
+      }
+    }
+
+    async function sendCommand() {
+      const input = document.getElementById("commandInput");
+      const command = input.value.trim();
+      if (!command) return;
+      try {
+        await NodeWings.api(`/api/servers/${serverUuid}/console`, {
+          method: "POST",
+          body: { command },
+        });
+        input.value = "";
+      } catch (error) {
+        NodeWings.showError(document.getElementById("consoleStatus"), error.message);
+      }
+    }
+
+    function drawResources(payload) {
+      document.getElementById("cpuUsage").textContent = `${Number(payload?.cpuPercent || 0).toFixed(2)}%`;
+      document.getElementById("ramUsage").textContent = `${Number(payload?.ramMb || 0).toFixed(2)} MB`;
+      document.getElementById("diskUsage").textContent = `${Number(payload?.diskMb || 0).toFixed(2)} MB`;
+      document.getElementById("netUsage").textContent =
+        `${Number(payload?.netRxKb || 0).toFixed(1)} KB/s ↓ · ${Number(payload?.netTxKb || 0).toFixed(1)} KB/s ↑`;
+      document.getElementById("resourceStatus").textContent = `Updated ${new Date().toLocaleTimeString()}`;
+    }
+
+    function renderBreadcrumb(path) {
+      const clean = path === "." ? "/" : `/${path}`.replace(/\\/g, "/");
+      document.getElementById("pathBreadcrumb").textContent = clean;
+    }
+
+    async function listFiles(path = ".") {
+      currentPath = path || ".";
+      renderBreadcrumb(currentPath);
+      const payload = await NodeWings.api(`/api/servers/${serverUuid}/files/list`, {
+        method: "POST",
+        body: { path: currentPath },
+      });
+      const body = document.getElementById("filesBody");
+      if (!payload.entries?.length) {
+        body.innerHTML = '<tr><td colspan="4" class="small">No files found.</td></tr>';
+        return;
+      }
+      body.innerHTML = payload.entries
+        .map((entry) => {
+          const safePath = String(entry.path).replace(/'/g, "\\'");
+          return `
+            <tr>
+              <td>${escape(entry.name)}</td>
+              <td>${entry.isDirectory ? "directory" : "file"}</td>
+              <td>${entry.isDirectory ? "-" : formatBytes(entry.size)}</td>
+              <td>
+                <div class="row">
+                  ${
+                    entry.isDirectory
+                      ? `<button class="secondary" onclick="listPath('${safePath}')">Open</button>`
+                      : `<button class="secondary" onclick="downloadPath('${safePath}')">Download</button>`
+                  }
+                  <button class="danger" onclick="deletePath('${safePath}')">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    async function loadBackups() {
+      const payload = await NodeWings.api(`/api/servers/${serverUuid}/backups`);
+      const body = document.getElementById("backupsBody");
+      if (!payload.backups?.length) {
+        body.innerHTML = '<tr><td colspan="4" class="small">No backups yet.</td></tr>';
+        return;
+      }
+      body.innerHTML = payload.backups
+        .map((backup) => `
+          <tr>
+            <td>${escape(backup.name)}</td>
+            <td>${formatBytes(backup.size)}</td>
+            <td>${new Date(Number(backup.createdAt) * 1000).toLocaleString()}</td>
+            <td>
+              <div class="row">
+                <button class="secondary" onclick="downloadBackup('${backup.name}')">Download</button>
+                <button class="danger" onclick="deleteBackup('${backup.name}')">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `)
+        .join("");
+    }
+
+    document.getElementById("btnStart").addEventListener("click", () => runPower("start"));
+    document.getElementById("btnStop").addEventListener("click", () => runPower("stop"));
+    document.getElementById("btnRestart").addEventListener("click", () => runPower("restart"));
+    document.getElementById("btnKill").addEventListener("click", () => runPower("kill"));
+
+    document.getElementById("sendBtn").addEventListener("click", sendCommand);
+    document.getElementById("commandInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") sendCommand();
+    });
+
+    document.getElementById("refreshFilesBtn").addEventListener("click", async () => {
+      try {
+        await listFiles(currentPath);
+      } catch (error) {
+        NodeWings.showError(document.getElementById("filesStatus"), error.message);
+      }
+    });
+
+    document.getElementById("mkdirBtn").addEventListener("click", async () => {
+      try {
+        const path = document.getElementById("mkdirPath").value.trim();
+        if (!path) throw new Error("Folder path is required");
+        await NodeWings.api(`/api/servers/${serverUuid}/files/mkdir`, {
+          method: "POST",
+          body: { path },
+        });
+        NodeWings.showInfo(document.getElementById("filesStatus"), `Folder created: ${path}`);
+        await listFiles(currentPath);
+      } catch (error) {
+        NodeWings.showError(document.getElementById("filesStatus"), error.message);
+      }
+    });
+
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const file = document.getElementById("uploadFile").files[0];
+      try {
+        if (!file) throw new Error("Choose a file first");
+        const targetPath = currentPath === "." ? file.name : `${currentPath}/${file.name}`;
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+        });
+        const contentBase64 = String(dataUrl).split(",")[1];
+        await NodeWings.api(`/api/servers/${serverUuid}/files/upload`, {
+          method: "POST",
+          body: { path: targetPath, contentBase64 },
+        });
+        NodeWings.showInfo(document.getElementById("filesStatus"), `Uploaded ${targetPath}`);
+        if (uploadInput && uploadName) {
+          uploadInput.value = "";
+          uploadName.textContent = "No file selected";
+        }
+        await listFiles(currentPath);
+      } catch (error) {
+        NodeWings.showError(document.getElementById("filesStatus"), error.message);
+      }
+    });
+
+    document.getElementById("createBackupBtn").addEventListener("click", async () => {
+      try {
+        const label = document.getElementById("backupLabel").value.trim();
+        NodeWings.showInfo(document.getElementById("backupStatus"), "Creating backup...");
+        await NodeWings.api(`/api/servers/${serverUuid}/backups/create`, {
+          method: "POST",
+          body: { label },
+        });
+        await loadBackups();
+        NodeWings.showInfo(document.getElementById("backupStatus"), "Backup created");
+      } catch (error) {
+        NodeWings.showError(document.getElementById("backupStatus"), error.message);
+      }
+    });
+
+    document.getElementById("saveStartupBtn").addEventListener("click", async () => {
+      try {
+        await NodeWings.api(`/api/servers/${serverUuid}`, {
+          method: "PATCH",
+          body: {
+            entryFile: document.getElementById("startupEntry").value.trim(),
+            startCommand: document.getElementById("startupCommand").value.trim(),
+            autoRestart: document.getElementById("startupRestart").value === "true",
+          },
+        });
+        await loadServer();
+        NodeWings.showInfo(document.getElementById("startupStatus"), "Startup updated");
+      } catch (error) {
+        NodeWings.showError(document.getElementById("startupStatus"), error.message);
+      }
+    });
+
+    document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
+      try {
+        await NodeWings.api(`/api/servers/${serverUuid}`, {
+          method: "PATCH",
+          body: {
+            ramLimitMb: Number(document.getElementById("settingsRam").value),
+            cpuLimitPercent: Number(document.getElementById("settingsCpu").value),
+            suspended: document.getElementById("settingsSuspended").value === "true",
+          },
+        });
+        await loadServer();
+        NodeWings.showInfo(document.getElementById("settingsStatus"), "Settings updated");
+      } catch (error) {
+        NodeWings.showError(document.getElementById("settingsStatus"), error.message);
+      }
+    });
+
+    document.getElementById("deleteServerBtn").addEventListener("click", async () => {
+      if (!confirm("Delete this server? This cannot be undone.")) return;
+      try {
+        await NodeWings.api(`/api/servers/${serverUuid}`, { method: "DELETE" });
+        NodeWings.showInfo(document.getElementById("settingsStatus"), "Server deleted");
+        setTimeout(() => {
+          location.href = "/servers";
+        }, 800);
+      } catch (error) {
+        NodeWings.showError(document.getElementById("settingsStatus"), error.message);
+      }
+    });
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => setTab(btn.dataset.tab));
+    });
+
+    window.listPath = async (path) => {
+      try {
+        await listFiles(path);
+      } catch (error) {
+        NodeWings.showError(document.getElementById("filesStatus"), error.message);
+      }
+    };
+
+    window.deletePath = async (path) => {
+      if (!confirm(`Delete ${path}?`)) return;
+      try {
+        await NodeWings.api(`/api/servers/${serverUuid}/files/delete`, {
+          method: "POST",
+          body: { path },
+        });
+        NodeWings.showInfo(document.getElementById("filesStatus"), `Deleted ${path}`);
+        await listFiles(currentPath);
+      } catch (error) {
+        NodeWings.showError(document.getElementById("filesStatus"), error.message);
+      }
+    };
+
+    window.downloadPath = async (path) => {
+      try {
+        const payload = await NodeWings.api(`/api/servers/${serverUuid}/files/download`, {
+          method: "POST",
+          body: { path },
+        });
+        const bytes = Uint8Array.from(atob(payload.contentBase64), (c) => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = path.split("/").pop();
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        NodeWings.showError(document.getElementById("filesStatus"), error.message);
+      }
+    };
+
+    window.deleteBackup = async (name) => {
+      if (!confirm(`Delete backup ${name}?`)) return;
+      try {
+        await NodeWings.api(`/api/servers/${serverUuid}/backups/delete`, {
+          method: "POST",
+          body: { name },
+        });
+        await loadBackups();
+        NodeWings.showInfo(document.getElementById("backupStatus"), "Backup deleted");
+      } catch (error) {
+        NodeWings.showError(document.getElementById("backupStatus"), error.message);
+      }
+    };
+
+    window.downloadBackup = async (name) => {
+      try {
+        const payload = await NodeWings.api(`/api/servers/${serverUuid}/backups/download`, {
+          method: "POST",
+          body: { name },
+        });
+        const bytes = Uint8Array.from(atob(payload.contentBase64), (c) => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: "application/gzip" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        NodeWings.showError(document.getElementById("backupStatus"), error.message);
+      }
+    };
+
+    (async () => {
+      const user = await NodeWings.initPage("Server");
+      if (!user) return;
+      currentUser = user;
+
+      if (!serverUuid) {
+        NodeWings.showError(document.getElementById("powerStatus"), "Missing server UUID in URL");
+        return;
+      }
+
+      await loadServer();
+      await loadHistory();
+      try {
+        const resPayload = await NodeWings.api(`/api/servers/${serverUuid}/resources`);
+        drawResources(resPayload.resource || {});
+      } catch {}
+      await listFiles(".");
+      await loadBackups();
+
+      const token = NodeWings.getToken();
+      const ws = NodeWings.connectServerSocket(token, (message) => {
+        if (message.type === "connected") {
+          ws.send(JSON.stringify({ type: "subscribe", channel: "server", uuid: serverUuid }));
+          return;
+        }
+        if (message.type === "server_event" && message.uuid === serverUuid) {
+          if (message.event.type === "log") {
+            appendLine(message.event.payload?.line || "");
+          }
+          if (message.event.type === "resource") {
+            drawResources(message.event.payload || {});
+          }
+          if (message.event.type === "status") {
+            currentServer = { ...currentServer, status: message.event.payload?.status || currentServer.status };
+            updateHeader();
+          }
+        }
+      });
+
+      ws.onclose = () => {
+        NodeWings.showError(document.getElementById("consoleStatus"), "WebSocket disconnected");
+      };
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Nodes</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <h2>Node Management</h2>
+      <div class="grid two" style="margin-top: 12px;">
+        <label>Node Name
+          <input id="nodeName" type="text" placeholder="EU VPS" />
+        </label>
+        <label>Node URL
+          <input id="nodeUrl" type="text" placeholder="http://192.168.1.100:8080" />
+        </label>
+        <label>Node Token
+          <input id="nodeToken" type="text" placeholder="nw_node_xxx" />
+        </label>
+        <label>Shared Secret
+          <input id="nodeSecret" type="text" placeholder="panel/agent secret" />
+        </label>
+        <label>Node ID (optional)
+          <input id="nodeId" type="text" placeholder="node-eu-1" />
+        </label>
+        <label>Protocol
+          <select id="nodeProtocol">
+            <option value="signed">Signed</option>
+            <option value="legacy">Legacy</option>
+          </select>
+        </label>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="generateSecretsBtn" class="secondary">Generate Token + Secret</button>
+        <button id="addNodeBtn">Add Node</button>
+      </div>
+      <p class="small" id="createStatus"></p>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <h3>Nodes</h3>
+        <button id="refreshBtn" class="secondary">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>ID</th>
+            <th>URL</th>
+            <th>Protocol</th>
+            <th>Status</th>
+            <th>CPU</th>
+            <th>RAM</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="nodesBody"></tbody>
+      </table>
+      <p class="small" id="status"></p>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const createStatusEl = document.getElementById("createStatus");
+
+    function statusTag(status) {
+      if (status === "online") {
+        return '<span class="tag ok"><span class="icon icon-check" aria-hidden="true"></span>Online</span>';
+      }
+      return '<span class="tag bad"><span class="icon icon-x" aria-hidden="true"></span>Offline</span>';
+    }
+
+    async function loadNodes() {
+      const payload = await NodeWings.api("/api/admin/nodes");
+      const body = document.getElementById("nodesBody");
+      const escape = NodeWings.escapeHtml;
+      if (!payload.nodes.length) {
+        body.innerHTML = '<tr><td colspan="8" class="small">No nodes configured.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = payload.nodes
+        .map((node) => {
+          const cpu = Number(node.resources?.cpuPercent || 0).toFixed(2);
+          const ramUsed = Number(node.resources?.ramUsedMb || 0).toFixed(1);
+          const ramTotal = Number(node.resources?.ramTotalMb || 0).toFixed(1);
+          return `
+            <tr>
+              <td>${escape(node.name)}</td>
+              <td><code>${escape(node.id)}</code></td>
+              <td>${escape(node.url)}</td>
+              <td>${escape(node.protocol || "signed")}</td>
+              <td>${statusTag(node.status)}</td>
+              <td>${escape(cpu)}%</td>
+              <td>${escape(ramUsed)} / ${escape(ramTotal)} MB</td>
+              <td>
+                <button class="danger" onclick="deleteNode('${node.id}')">Remove</button>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    async function deleteNode(nodeId) {
+      if (!confirm("Remove this node?")) return;
+      try {
+        await NodeWings.api(`/api/admin/nodes/${nodeId}`, { method: "DELETE" });
+        NodeWings.showInfo(statusEl, "Node removed");
+        await loadNodes();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    }
+
+    document.getElementById("addNodeBtn").addEventListener("click", async () => {
+      try {
+        const rawToken = document.getElementById("nodeToken").value.trim();
+        const rawSecret = document.getElementById("nodeSecret").value.trim() || rawToken;
+        const payload = {
+          name: document.getElementById("nodeName").value.trim(),
+          url: document.getElementById("nodeUrl").value.trim(),
+          secret: rawSecret,
+          token: rawToken,
+          panelSecret: rawSecret,
+          agentSecret: rawSecret,
+          id: document.getElementById("nodeId").value.trim(),
+          protocol: document.getElementById("nodeProtocol").value,
+        };
+
+        await NodeWings.api("/api/admin/nodes", { method: "POST", body: payload });
+        NodeWings.showInfo(createStatusEl, "Node added");
+        await loadNodes();
+      } catch (error) {
+        NodeWings.showError(createStatusEl, error.message);
+      }
+    });
+
+    document.getElementById("generateSecretsBtn").addEventListener("click", () => {
+      const token = `nw_node_${crypto.randomUUID().slice(0, 8)}`;
+      const secret = `nw_secret_${crypto.randomUUID().slice(0, 8)}`;
+      const tokenInput = document.getElementById("nodeToken");
+      const secretInput = document.getElementById("nodeSecret");
+      tokenInput.value = token;
+      secretInput.value = secret;
+      NodeWings.showInfo(createStatusEl, "Generated node token and shared secret");
+    });
+
+    document.getElementById("refreshBtn").addEventListener("click", loadNodes);
+    window.deleteNode = deleteNode;
+
+    (async () => {
+      const user = await NodeWings.initPage("Admin Nodes", { adminOnly: true });
+      if (!user) return;
+      try {
+        await loadNodes();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    })();
+  </script>
+</body>
+</html>

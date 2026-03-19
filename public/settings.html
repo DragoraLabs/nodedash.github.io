@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NodeWings Settings</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <h2>Account</h2>
+      <div class="grid two">
+        <article class="card">
+          <h3>Name</h3>
+          <p id="userName">-</p>
+        </article>
+        <article class="card">
+          <h3>Email</h3>
+          <p id="userEmail">-</p>
+        </article>
+        <article class="card">
+          <h3>Role</h3>
+          <p id="userRole">-</p>
+        </article>
+        <article class="card">
+          <h3>Server Limit</h3>
+          <p id="userLimit">-</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Theme</h2>
+      <p class="small">Pick a theme. Preview updates instantly without page reload.</p>
+      <div id="themeGrid" class="theme-grid" style="margin-top: 12px;"></div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="saveThemeBtn">Save Theme</button>
+      </div>
+      <p class="small" id="status"></p>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    let panelSettings = null;
+    let themes = [];
+    let selectedTheme = null;
+
+    function renderUser(user) {
+      document.getElementById("userName").textContent = user.name || "-";
+      document.getElementById("userEmail").textContent = user.email || "-";
+      document.getElementById("userRole").textContent = user.role || "-";
+      document.getElementById("userLimit").textContent = Number(user.server_limit) === -1
+        ? "Unlimited"
+        : String(user.server_limit ?? "-");
+      selectedTheme = user.theme || panelSettings?.default_theme || "gray";
+    }
+
+    function renderThemeGrid() {
+      const grid = document.getElementById("themeGrid");
+      grid.innerHTML = themes
+        .map((theme) => {
+          const previewStyle = `--preview-sidebar: ${theme.palette?.sidebar || "#2f2f2f"}; --preview-card: ${theme.palette?.card || "#ffffff"}; background: ${theme.palette?.background || "#f4f4f4"};`;
+          const selectedClass = theme.id === selectedTheme ? "selected" : "";
+          return `
+            <div class="theme-card ${selectedClass}" data-theme-id="${theme.id}" style="${previewStyle}">
+              <div class="theme-preview">
+                <div class="preview-sidebar"></div>
+                <div class="preview-card"></div>
+              </div>
+              <strong>${theme.name}</strong>
+              <span class="small">${theme.id}</span>
+            </div>
+          `;
+        })
+        .join("");
+
+      grid.querySelectorAll(".theme-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          selectedTheme = card.dataset.themeId;
+          const theme = themes.find((item) => item.id === selectedTheme);
+          if (panelSettings && theme) {
+            NodeWings.applyTheme(panelSettings, selectedTheme, theme);
+          }
+          renderThemeGrid();
+        });
+      });
+    }
+
+    async function loadSettings() {
+      const payload = await NodeWings.api("/api/settings");
+      panelSettings = payload.settings;
+      themes = payload.themes || [];
+      renderUser(payload.user);
+      renderThemeGrid();
+      NodeWings.applyTheme(payload.settings, payload.user.theme || payload.settings.default_theme, payload.theme);
+    }
+
+    document.getElementById("saveThemeBtn").addEventListener("click", async () => {
+      try {
+        const theme = selectedTheme;
+        const payload = await NodeWings.api("/api/settings/theme", {
+          method: "PUT",
+          body: { theme },
+        });
+
+        renderUser(payload.user);
+        if (panelSettings) {
+          const themeObj = themes.find((item) => item.id === payload.user.theme);
+          NodeWings.applyTheme(panelSettings, payload.user.theme || panelSettings.default_theme, themeObj);
+        }
+        NodeWings.showInfo(statusEl, "Theme updated");
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    (async () => {
+      const user = await NodeWings.initPage("Settings");
+      if (!user) return;
+
+      try {
+        await loadSettings();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    })();
+  </script>
+</body>
+</html>

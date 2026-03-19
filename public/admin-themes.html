@@ -1,0 +1,226 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Themes</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <div class="toolbar">
+        <h2>Theme Library</h2>
+        <button id="refreshBtn" class="secondary">Refresh</button>
+      </div>
+      <div id="themeGrid" class="theme-grid" style="margin-top: 12px;"></div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="setDefaultBtn">Set Default Theme</button>
+      </div>
+      <div class="grid two" style="margin-top: 12px;">
+        <label>Background Image URL
+          <input id="backgroundImage" type="text" placeholder="https://..." />
+        </label>
+        <div class="row" style="margin-top: 22px;">
+          <button id="saveBackgroundBtn">Save Background</button>
+          <button id="clearBackgroundBtn" class="secondary">Clear</button>
+        </div>
+      </div>
+      <p class="small" id="status"></p>
+    </section>
+
+    <section class="card">
+      <h3>Custom Theme (JSON)</h3>
+      <p class="small">Upload a JSON theme or fill the fields below.</p>
+      <div class="grid two" style="margin-top: 12px;">
+        <label>Theme ID
+          <input id="themeId" type="text" placeholder="custom-theme" />
+        </label>
+        <label>Theme Name
+          <input id="themeName" type="text" placeholder="Custom Theme" />
+        </label>
+        <label>Background
+          <input id="themeBackground" type="text" placeholder="#101117" />
+        </label>
+        <label>Sidebar
+          <input id="themeSidebar" type="text" placeholder="#1b1d26" />
+        </label>
+        <label>Card
+          <input id="themeCard" type="text" placeholder="#1f2330" />
+        </label>
+        <label>Text
+          <input id="themeText" type="text" placeholder="#e8eef7" />
+        </label>
+        <label>Accent
+          <input id="themeAccent" type="text" placeholder="#4f8cff" />
+        </label>
+        <label>Button
+          <input id="themeButton" type="text" placeholder="#3a4658" />
+        </label>
+        <label>Theme JSON
+          <input id="themeFile" type="file" accept="application/json" />
+        </label>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="createThemeBtn">Save Theme</button>
+      </div>
+      <p class="small" id="themeStatus"></p>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const themeStatusEl = document.getElementById("themeStatus");
+    let themes = [];
+    let selectedThemeId = null;
+    let panelSettings = null;
+
+    function renderThemeGrid() {
+      const grid = document.getElementById("themeGrid");
+      grid.innerHTML = themes
+        .map((theme) => {
+          const previewStyle = `--preview-sidebar: ${theme.palette?.sidebar || "#2f2f2f"}; --preview-card: ${theme.palette?.card || "#ffffff"}; background: ${theme.palette?.background || "#f4f4f4"};`;
+          const selectedClass = theme.id === selectedThemeId ? "selected" : "";
+          return `
+            <div class="theme-card ${selectedClass}" data-theme-id="${theme.id}" style="${previewStyle}">
+              <div class="theme-preview">
+                <div class="preview-sidebar"></div>
+                <div class="preview-card"></div>
+              </div>
+              <strong>${theme.name}</strong>
+              <span class="small">${theme.id}</span>
+            </div>
+          `;
+        })
+        .join("");
+
+      grid.querySelectorAll(".theme-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          selectedThemeId = card.dataset.themeId;
+          const theme = themes.find((item) => item.id === selectedThemeId);
+          if (panelSettings && theme) {
+            NodeWings.applyTheme(panelSettings, selectedThemeId, theme);
+          }
+          renderThemeGrid();
+        });
+      });
+    }
+
+    async function loadThemes() {
+      const [themesPayload, settingsPayload] = await Promise.all([
+        NodeWings.api("/api/admin/themes"),
+        NodeWings.api("/api/admin/panel-settings"),
+      ]);
+      themes = themesPayload.themes || [];
+      panelSettings = settingsPayload.settings;
+      selectedThemeId = panelSettings.default_theme;
+      document.getElementById("backgroundImage").value = panelSettings.background_image || "";
+      renderThemeGrid();
+    }
+
+    document.getElementById("setDefaultBtn").addEventListener("click", async () => {
+      try {
+        await NodeWings.api("/api/admin/panel-settings", {
+          method: "PUT",
+          body: { default_theme: selectedThemeId },
+        });
+        NodeWings.showInfo(statusEl, "Default theme updated");
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    document.getElementById("refreshBtn").addEventListener("click", loadThemes);
+
+    document.getElementById("saveBackgroundBtn").addEventListener("click", async () => {
+      try {
+        const value = document.getElementById("backgroundImage").value.trim();
+        await NodeWings.api("/api/admin/panel-settings", {
+          method: "PUT",
+          body: { background_image: value },
+        });
+        panelSettings.background_image = value;
+        const theme = themes.find((item) => item.id === selectedThemeId);
+        if (theme) {
+          NodeWings.applyTheme(panelSettings, selectedThemeId, theme);
+        }
+        NodeWings.showInfo(statusEl, "Background updated");
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    document.getElementById("clearBackgroundBtn").addEventListener("click", async () => {
+      try {
+        document.getElementById("backgroundImage").value = "";
+        await NodeWings.api("/api/admin/panel-settings", {
+          method: "PUT",
+          body: { background_image: "" },
+        });
+        panelSettings.background_image = "";
+        const theme = themes.find((item) => item.id === selectedThemeId);
+        if (theme) {
+          NodeWings.applyTheme(panelSettings, selectedThemeId, theme);
+        }
+        NodeWings.showInfo(statusEl, "Background cleared");
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    document.getElementById("themeFile").addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        document.getElementById("themeId").value = data.id || "";
+        document.getElementById("themeName").value = data.name || "";
+        const palette = data.palette || {};
+        document.getElementById("themeBackground").value = palette.background || "";
+        document.getElementById("themeSidebar").value = palette.sidebar || "";
+        document.getElementById("themeCard").value = palette.card || "";
+        document.getElementById("themeText").value = palette.text || "";
+        document.getElementById("themeAccent").value = palette.accent || "";
+        document.getElementById("themeButton").value = palette.button || "";
+      } catch (error) {
+        NodeWings.showError(themeStatusEl, "Invalid JSON file");
+      }
+    });
+
+    document.getElementById("createThemeBtn").addEventListener("click", async () => {
+      try {
+        const payload = {
+          id: document.getElementById("themeId").value.trim(),
+          name: document.getElementById("themeName").value.trim(),
+          palette: {
+            background: document.getElementById("themeBackground").value.trim(),
+            sidebar: document.getElementById("themeSidebar").value.trim(),
+            card: document.getElementById("themeCard").value.trim(),
+            text: document.getElementById("themeText").value.trim(),
+            accent: document.getElementById("themeAccent").value.trim(),
+            button: document.getElementById("themeButton").value.trim(),
+          },
+        };
+        await NodeWings.api("/api/admin/themes", { method: "POST", body: payload });
+        NodeWings.showInfo(themeStatusEl, "Theme saved");
+        await loadThemes();
+      } catch (error) {
+        NodeWings.showError(themeStatusEl, error.message);
+      }
+    });
+
+    (async () => {
+      const user = await NodeWings.initPage("Admin Themes", { adminOnly: true });
+      if (!user) return;
+      try {
+        await loadThemes();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    })();
+  </script>
+</body>
+</html>

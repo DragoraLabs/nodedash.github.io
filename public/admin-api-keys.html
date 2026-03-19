@@ -1,0 +1,126 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin API Keys</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <h2>API Keys</h2>
+      <div class="grid two" style="margin-top: 12px;">
+        <label>Owner Email
+          <input id="keyOwner" type="email" placeholder="admin@example.com" />
+        </label>
+        <label>Permissions
+          <div class="row" style="flex-wrap: wrap; gap: 8px;">
+            <label><input type="checkbox" class="perm" value="all" /> all</label>
+            <label><input type="checkbox" class="perm" value="servers" /> servers</label>
+            <label><input type="checkbox" class="perm" value="nodes" /> nodes</label>
+            <label><input type="checkbox" class="perm" value="users" /> users</label>
+            <label><input type="checkbox" class="perm" value="panel" /> panel</label>
+          </div>
+        </label>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="createKeyBtn">Generate Key</button>
+      </div>
+      <p class="small" id="createStatus"></p>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <h3>Active Keys</h3>
+        <button id="refreshBtn" class="secondary">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Owner</th>
+            <th>Permissions</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="keysBody"></tbody>
+      </table>
+      <p class="small" id="status"></p>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const createStatusEl = document.getElementById("createStatus");
+
+    function selectedPermissions() {
+      return Array.from(document.querySelectorAll(".perm:checked")).map((el) => el.value);
+    }
+
+    async function loadKeys() {
+      const payload = await NodeWings.api("/api/admin/api-keys");
+      const body = document.getElementById("keysBody");
+      const escape = NodeWings.escapeHtml;
+
+      if (!payload.api_keys.length) {
+        body.innerHTML = '<tr><td colspan="5" class="small">No API keys yet.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = payload.api_keys
+        .map((item) => `
+          <tr>
+            <td><code>${escape(item.key_masked)}</code></td>
+            <td>${escape(item.owner || "-")}</td>
+            <td>${escape((item.permissions || []).join(", "))}</td>
+            <td>${escape(item.created_at ? new Date(item.created_at).toLocaleString() : "-")}</td>
+            <td><button class="danger" onclick="deleteKey('${item.id}')">Delete</button></td>
+          </tr>
+        `)
+        .join("");
+    }
+
+    async function deleteKey(id) {
+      if (!confirm("Delete this API key?")) return;
+      try {
+        await NodeWings.api(`/api/admin/api-keys/${id}`, { method: "DELETE" });
+        NodeWings.showInfo(statusEl, "API key deleted");
+        await loadKeys();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    }
+
+    document.getElementById("createKeyBtn").addEventListener("click", async () => {
+      try {
+        const payload = {
+          owner: document.getElementById("keyOwner").value.trim(),
+          permissions: selectedPermissions(),
+        };
+        const created = await NodeWings.api("/api/admin/api-keys", { method: "POST", body: payload });
+        NodeWings.showInfo(createStatusEl, `API key created: ${created.api_key.key}`);
+        await loadKeys();
+      } catch (error) {
+        NodeWings.showError(createStatusEl, error.message);
+      }
+    });
+
+    document.getElementById("refreshBtn").addEventListener("click", loadKeys);
+    window.deleteKey = deleteKey;
+
+    (async () => {
+      const user = await NodeWings.initPage("Admin API Keys", { adminOnly: true });
+      if (!user) return;
+      try {
+        await loadKeys();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    })();
+  </script>
+</body>
+</html>

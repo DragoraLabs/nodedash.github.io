@@ -1,0 +1,164 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Users</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <h2>User Management</h2>
+      <div class="grid two" style="margin-top: 12px;">
+        <label>Name
+          <input id="newName" type="text" placeholder="Jane Doe" />
+        </label>
+        <label>Email
+          <input id="newEmail" type="email" placeholder="user@example.com" />
+        </label>
+        <label>Password
+          <input id="newPassword" type="password" placeholder="Temporary password" />
+        </label>
+        <label>Role
+          <select id="newRole">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+        <label>Server Limit
+          <input id="newLimit" type="number" value="1" />
+        </label>
+        <label>Theme
+          <input id="newTheme" type="text" placeholder="gray" />
+        </label>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="createUserBtn">Create User</button>
+      </div>
+      <p class="small" id="createStatus"></p>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <h3>Users</h3>
+        <button id="refreshBtn" class="secondary">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Limit</th>
+            <th>Servers</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="usersBody"></tbody>
+      </table>
+      <p class="small" id="status"></p>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const createStatusEl = document.getElementById("createStatus");
+
+    async function loadUsers() {
+      const payload = await NodeWings.api("/api/admin/users");
+      const body = document.getElementById("usersBody");
+      const escape = NodeWings.escapeHtml;
+      if (!payload.users.length) {
+        body.innerHTML = '<tr><td colspan="6" class="small">No users found.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = payload.users
+        .map((user) => {
+          const limitValue = Number(user.server_limit) === -1 ? "-1" : user.server_limit;
+          return `
+            <tr>
+              <td>${escape(user.name || "-")}</td>
+              <td>${escape(user.email)}</td>
+              <td>
+                <select data-role="${user.id}">
+                  <option value="user" ${user.role === "user" ? "selected" : ""}>User</option>
+                  <option value="admin" ${user.role === "admin" ? "selected" : ""}>Admin</option>
+                </select>
+              </td>
+              <td><input type="number" value="${limitValue}" data-limit="${user.id}" /></td>
+              <td>${user.server_count ?? 0}</td>
+              <td>
+                <div class="table-actions">
+                  <button class="secondary" onclick="saveUser('${user.id}')">Save</button>
+                  <button class="danger" onclick="deleteUser('${user.id}')">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    async function saveUser(userId) {
+      try {
+        const role = document.querySelector(`[data-role="${userId}"]`).value;
+        const limit = document.querySelector(`[data-limit="${userId}"]`).value;
+        await NodeWings.api(`/api/admin/users/${userId}`, {
+          method: "PATCH",
+          body: { role, server_limit: Number(limit) },
+        });
+        NodeWings.showInfo(statusEl, "User updated");
+        await loadUsers();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm("Delete this user?")) return;
+      try {
+        await NodeWings.api(`/api/admin/users/${userId}`, { method: "DELETE" });
+        NodeWings.showInfo(statusEl, "User deleted");
+        await loadUsers();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    }
+
+    document.getElementById("createUserBtn").addEventListener("click", async () => {
+      try {
+        const payload = {
+          name: document.getElementById("newName").value.trim(),
+          email: document.getElementById("newEmail").value.trim(),
+          password: document.getElementById("newPassword").value,
+          role: document.getElementById("newRole").value,
+          server_limit: Number(document.getElementById("newLimit").value),
+          theme: document.getElementById("newTheme").value.trim(),
+        };
+
+        await NodeWings.api("/api/admin/users", { method: "POST", body: payload });
+        NodeWings.showInfo(createStatusEl, "User created");
+        await loadUsers();
+      } catch (error) {
+        NodeWings.showError(createStatusEl, error.message);
+      }
+    });
+
+    document.getElementById("refreshBtn").addEventListener("click", loadUsers);
+
+    (async () => {
+      const user = await NodeWings.initPage("Admin Users", { adminOnly: true });
+      if (!user) return;
+      try {
+        await loadUsers();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    })();
+  </script>
+</body>
+</html>

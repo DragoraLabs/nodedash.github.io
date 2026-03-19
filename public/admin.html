@@ -1,0 +1,101 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NodeWings Admin</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <h2>Admin Dashboard</h2>
+      <p class="small">Overview of users, nodes, servers, and update status.</p>
+      <div class="stat-grid" style="margin-top: 12px;">
+        <article class="stat-card">
+          <span class="stat-label">Users</span>
+          <span class="metric-value" id="statUsers">0</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Servers</span>
+          <span class="metric-value" id="statServers">0</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Nodes</span>
+          <span class="metric-value" id="statNodes">0</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Update</span>
+          <span class="metric-value" id="statUpdate">-</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Quick Actions</h3>
+      <div class="theme-grid" style="margin-top: 12px;">
+        <a class="theme-card" href="/admin/users">
+          <strong>Users</strong>
+          <span class="small">Manage accounts, roles, limits</span>
+        </a>
+        <a class="theme-card" href="/admin/nodes">
+          <strong>Nodes</strong>
+          <span class="small">Add, remove, monitor nodes</span>
+        </a>
+        <a class="theme-card" href="/admin/api-keys">
+          <strong>API Keys</strong>
+          <span class="small">Generate and revoke keys</span>
+        </a>
+        <a class="theme-card" href="/admin/audit-logs">
+          <strong>Audit Logs</strong>
+          <span class="small">Security and admin actions</span>
+        </a>
+        <a class="theme-card" href="/admin/user-logs">
+          <strong>User Logs</strong>
+          <span class="small">Server actions and console</span>
+        </a>
+        <a class="theme-card" href="/admin/themes">
+          <strong>Themes</strong>
+          <span class="small">Global and custom themes</span>
+        </a>
+        <a class="theme-card" href="/admin/update">
+          <strong>Updates</strong>
+          <span class="small">Version check and apply</span>
+        </a>
+        <a class="theme-card" href="/admin/docker">
+          <strong>Docker Image</strong>
+          <span class="small">Build and explain images</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    async function loadStats() {
+      const [users, servers, nodes, update] = await Promise.all([
+        NodeWings.api("/api/admin/users"),
+        NodeWings.api("/api/servers"),
+        NodeWings.api("/api/admin/nodes"),
+        NodeWings.api("/api/admin/update/status"),
+      ]);
+
+      document.getElementById("statUsers").textContent = users.users.length;
+      document.getElementById("statServers").textContent = servers.servers.length;
+      document.getElementById("statNodes").textContent = nodes.nodes.length;
+      document.getElementById("statUpdate").textContent = update.state.update_available ? "Update" : "Latest";
+    }
+
+    (async () => {
+      const user = await NodeWings.initPage("Admin Dashboard", { adminOnly: true });
+      if (!user) return;
+      try {
+        await loadStats();
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Server Settings</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <h2>Server Settings</h2>
+      <p class="small">Manage server limits, startup, and suspension.</p>
+      <div class="grid two" style="margin-top: 12px;">
+        <label>Server Name
+          <input id="serverName" type="text" />
+        </label>
+        <label>Runtime
+          <input id="serverRuntime" type="text" disabled />
+        </label>
+        <label>Entry File
+          <input id="serverEntry" type="text" />
+        </label>
+        <label>Start Command
+          <input id="serverCommand" type="text" placeholder="Custom start command" />
+        </label>
+        <label>Auto Restart
+          <select id="serverAutoRestart">
+            <option value="true">Enabled</option>
+            <option value="false">Disabled</option>
+          </select>
+        </label>
+        <label id="ramWrap">RAM Limit (MB)
+          <input id="serverRam" type="number" min="32" />
+        </label>
+        <label id="cpuWrap">CPU Limit (%)
+          <input id="serverCpu" type="number" min="1" />
+        </label>
+        <label id="suspendWrap">Suspended
+          <select id="serverSuspended">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+          </select>
+        </label>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="saveBtn">Save Changes</button>
+        <button id="deleteBtn" class="danger">Delete Server</button>
+        <a href="/servers"><button class="secondary">Back</button></a>
+      </div>
+      <p class="small" id="status"></p>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const serverUuid = NodeWings.parseServerUuidFromPath();
+    let currentUser = null;
+
+    function toggleAdminFields(isAdmin) {
+      document.getElementById("ramWrap").style.display = isAdmin ? "grid" : "none";
+      document.getElementById("cpuWrap").style.display = isAdmin ? "grid" : "none";
+      document.getElementById("suspendWrap").style.display = isAdmin ? "grid" : "none";
+      document.getElementById("deleteBtn").style.display = isAdmin ? "inline-flex" : "none";
+    }
+
+    async function loadServer() {
+      const payload = await NodeWings.api(`/api/servers/${serverUuid}`);
+      const server = payload.server;
+      document.getElementById("serverName").value = server.name || "";
+      document.getElementById("serverRuntime").value = `${server.runtime}${server.runtimeVersion ? " " + server.runtimeVersion : ""}`;
+      document.getElementById("serverEntry").value = server.entryFile || "";
+      document.getElementById("serverCommand").value = server.startCommand || "";
+      document.getElementById("serverAutoRestart").value = server.autoRestart === false ? "false" : "true";
+      document.getElementById("serverRam").value = server.ramLimitMb || 0;
+      document.getElementById("serverCpu").value = server.cpuLimitPercent || 0;
+      document.getElementById("serverSuspended").value = server.suspended ? "true" : "false";
+    }
+
+    document.getElementById("saveBtn").addEventListener("click", async () => {
+      try {
+        const payload = {
+          name: document.getElementById("serverName").value.trim(),
+          entryFile: document.getElementById("serverEntry").value.trim(),
+          startCommand: document.getElementById("serverCommand").value.trim(),
+          autoRestart: document.getElementById("serverAutoRestart").value === "true",
+        };
+
+        if (currentUser?.role === "admin") {
+          payload.ramLimitMb = Number(document.getElementById("serverRam").value);
+          payload.cpuLimitPercent = Number(document.getElementById("serverCpu").value);
+          payload.suspended = document.getElementById("serverSuspended").value === "true";
+        }
+
+        await NodeWings.api(`/api/servers/${serverUuid}`, {
+          method: "PATCH",
+          body: payload,
+        });
+
+        NodeWings.showInfo(statusEl, "Server updated");
+        await loadServer();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    document.getElementById("deleteBtn").addEventListener("click", async () => {
+      if (!confirm("Delete this server? This cannot be undone.")) return;
+      try {
+        await NodeWings.api(`/api/servers/${serverUuid}`, { method: "DELETE" });
+        NodeWings.showInfo(statusEl, "Server deleted");
+        setTimeout(() => {
+          location.href = "/servers";
+        }, 800);
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    (async () => {
+      const user = await NodeWings.initPage("Server Settings");
+      if (!user) return;
+      currentUser = user;
+      toggleAdminFields(user.role === "admin");
+
+      if (!serverUuid) {
+        NodeWings.showError(statusEl, "Missing server UUID in URL");
+        return;
+      }
+
+      try {
+        await loadServer();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    })();
+  </script>
+</body>
+</html>

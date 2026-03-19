@@ -1,0 +1,69 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Logs</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <div class="toolbar">
+        <h2>User Logs</h2>
+        <button id="refreshBtn" class="secondary">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Server</th>
+            <th>Message</th>
+          </tr>
+        </thead>
+        <tbody id="logsBody"></tbody>
+      </table>
+      <p class="small" id="status"></p>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+
+    async function loadLogs() {
+      const payload = await NodeWings.api("/api/admin/user-logs?limit=500");
+      const body = document.getElementById("logsBody");
+      if (!payload.logs.length) {
+        body.innerHTML = '<tr><td colspan="4" class="small">No logs yet.</td></tr>';
+        return;
+      }
+      body.innerHTML = payload.logs
+        .map((log) => `
+          <tr>
+            <td>${NodeWings.escapeHtml(new Date(log.ts).toLocaleString())}</td>
+            <td><code>${NodeWings.escapeHtml(log.type)}</code></td>
+            <td>${NodeWings.escapeHtml(log.serverUuid || "-")}</td>
+            <td>${NodeWings.escapeHtml(log.message || "-")}</td>
+          </tr>
+        `)
+        .join("");
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", loadLogs);
+
+    (async () => {
+      const user = await NodeWings.initPage("User Logs", { adminOnly: true });
+      if (!user) return;
+      try {
+        await loadLogs();
+        statusEl.textContent = `Loaded ${new Date().toLocaleTimeString()}`;
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Server Files</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <h2>Files: <code id="serverId"></code></h2>
+      <div class="row">
+        <div class="pill" id="pathBreadcrumb">/</div>
+        <button id="refreshBtn" style="max-width: 140px;">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="filesBody"></tbody>
+      </table>
+      <p class="small" id="status"></p>
+    </section>
+
+    <section class="card">
+      <h3>Upload File</h3>
+      <div class="file-grid">
+        <div>
+          <label>Select File</label>
+          <label class="file-input">
+            <input id="uploadFile" type="file" />
+            <span class="file-button">Choose file</span>
+            <span class="file-name" id="uploadName">No file selected</span>
+          </label>
+        </div>
+        <div class="row" style="align-items: flex-end;">
+          <button id="uploadBtn" style="max-width: 160px;">Upload</button>
+        </div>
+      </div>
+
+      <h3>Create Folder</h3>
+      <div class="row">
+        <input id="mkdirPath" type="text" placeholder="Relative path, e.g. logs" />
+        <button id="mkdirBtn" style="max-width: 160px;">Create Folder</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const serverUuid = NodeWings.parseServerUuidFromPath();
+    const statusEl = document.getElementById("status");
+    document.getElementById("serverId").textContent = serverUuid || "unknown";
+    const breadcrumbEl = document.getElementById("pathBreadcrumb");
+    let currentPath = ".";
+
+    const uploadInput = document.getElementById("uploadFile");
+    const uploadName = document.getElementById("uploadName");
+    if (uploadInput && uploadName) {
+      uploadInput.addEventListener("change", () => {
+        uploadName.textContent = uploadInput.files?.[0]?.name || "No file selected";
+      });
+    }
+
+    function formatBytes(size) {
+      if (!size) return "0 B";
+      const units = ["B", "KB", "MB", "GB"];
+      let idx = 0;
+      let value = size;
+      while (value >= 1024 && idx < units.length - 1) {
+        value /= 1024;
+        idx += 1;
+      }
+      return `${value.toFixed(2)} ${units[idx]}`;
+    }
+
+    function renderBreadcrumb(path) {
+      const clean = path === "." ? "/" : `/${path}`.replace(/\\/g, "/");
+      breadcrumbEl.textContent = clean;
+    }
+
+    async function listFiles(path = ".") {
+      currentPath = path || ".";
+      renderBreadcrumb(currentPath);
+      const payload = await NodeWings.api(`/api/servers/${serverUuid}/files/list`, {
+        method: "POST",
+        body: { path },
+      });
+
+      const body = document.getElementById("filesBody");
+      if (!payload.entries?.length) {
+        body.innerHTML = '<tr><td colspan="4" class="small">No files found.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = payload.entries
+        .map((entry) => {
+          const safePath = String(entry.path).replace(/'/g, "\\'");
+          return `
+            <tr>
+              <td>${entry.name}</td>
+              <td>${entry.isDirectory ? "directory" : "file"}</td>
+              <td>${entry.isDirectory ? "-" : formatBytes(entry.size)}</td>
+              <td>
+                <div class="row">
+                  ${
+                    entry.isDirectory
+                      ? `<button class="secondary" onclick="listPath('${safePath}')">Open</button>`
+                      : `<button class="secondary" onclick="downloadPath('${safePath}')">Download</button>`
+                  }
+                  <button class="danger" onclick="deletePath('${safePath}')">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    window.listPath = async (path) => {
+      try {
+        await listFiles(path);
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    };
+
+    window.deletePath = async (path) => {
+      if (!confirm(`Delete ${path}?`)) return;
+      try {
+        await NodeWings.api(`/api/servers/${serverUuid}/files/delete`, {
+          method: "POST",
+          body: { path },
+        });
+        NodeWings.showInfo(statusEl, `Deleted ${path}`);
+        await listFiles(currentPath);
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    };
+
+    window.downloadPath = async (path) => {
+      try {
+        const payload = await NodeWings.api(`/api/servers/${serverUuid}/files/download`, {
+          method: "POST",
+          body: { path },
+        });
+        const bytes = Uint8Array.from(atob(payload.contentBase64), (c) => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = path.split("/").pop();
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    };
+
+    document.getElementById("refreshBtn").addEventListener("click", async () => {
+      try {
+        await listFiles(currentPath);
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    document.getElementById("mkdirBtn").addEventListener("click", async () => {
+      try {
+        const path = document.getElementById("mkdirPath").value.trim();
+        if (!path) throw new Error("Folder path is required");
+        await NodeWings.api(`/api/servers/${serverUuid}/files/mkdir`, {
+          method: "POST",
+          body: { path },
+        });
+        NodeWings.showInfo(statusEl, `Folder created: ${path}`);
+        await listFiles(currentPath);
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const file = document.getElementById("uploadFile").files[0];
+
+      try {
+        if (!file) throw new Error("Choose a file first");
+
+        const path = currentPath === "." ? file.name : `${currentPath}/${file.name}`;
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+        });
+
+        const contentBase64 = String(dataUrl).split(",")[1];
+        await NodeWings.api(`/api/servers/${serverUuid}/files/upload`, {
+          method: "POST",
+          body: { path, contentBase64 },
+        });
+
+        NodeWings.showInfo(statusEl, `Uploaded ${path}`);
+        if (uploadInput && uploadName) {
+          uploadInput.value = "";
+          uploadName.textContent = "No file selected";
+        }
+        await listFiles(currentPath);
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    (async () => {
+      const user = await NodeWings.initPage("Files");
+      if (!user) return;
+      NodeWings.renderHeader(`Files (${user.email})`);
+
+      if (!serverUuid) {
+        NodeWings.showError(statusEl, "Missing server UUID in URL");
+        return;
+      }
+
+      try {
+        await listFiles(".");
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    })();
+  </script>
+</body>
+</html>

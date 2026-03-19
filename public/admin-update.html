@@ -1,0 +1,100 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Updates</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header id="header"></header>
+  <main>
+    <section class="card">
+      <h2>Panel Updates</h2>
+      <div class="grid two" style="margin-top: 12px;">
+        <label>Local Version
+          <input id="localVersion" type="text" disabled />
+        </label>
+        <label>Remote Version
+          <input id="remoteVersion" type="text" disabled />
+        </label>
+        <label>Version Check URL
+          <input id="versionUrl" type="text" />
+        </label>
+        <label>Status
+          <input id="updateStatus" type="text" disabled />
+        </label>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="checkBtn">Check for Updates</button>
+        <button id="applyBtn" class="secondary">Apply Update (Git Pull)</button>
+      </div>
+      <p class="small" id="status"></p>
+    </section>
+
+    <section class="card">
+      <h3>Last Update Log</h3>
+      <div class="code-block" id="updateLog">No updates yet.</div>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+
+    function renderState(payload) {
+      document.getElementById("localVersion").value = payload.local_version || "0.0.0";
+      document.getElementById("remoteVersion").value = payload.state.remote_version || "-";
+      document.getElementById("versionUrl").value = payload.state.source_url || "";
+      document.getElementById("updateStatus").value = payload.state.update_available ? "Update available" : "Up to date";
+
+      const log = payload.state.last_update_log;
+      if (!log) {
+        document.getElementById("updateLog").textContent = "No updates yet.";
+      } else {
+        document.getElementById("updateLog").textContent = JSON.stringify(log, null, 2);
+      }
+    }
+
+    async function loadStatus() {
+      const payload = await NodeWings.api("/api/admin/update/status");
+      renderState(payload);
+    }
+
+    document.getElementById("checkBtn").addEventListener("click", async () => {
+      try {
+        const url = document.getElementById("versionUrl").value.trim();
+        const payload = await NodeWings.api("/api/admin/update/check", {
+          method: "POST",
+          body: { url },
+        });
+        renderState(payload);
+        NodeWings.showInfo(statusEl, "Update check complete");
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    document.getElementById("applyBtn").addEventListener("click", async () => {
+      if (!confirm("Apply update now? This runs git pull on panel and wings.")) return;
+      try {
+        const payload = await NodeWings.api("/api/admin/update/apply", { method: "POST" });
+        NodeWings.showInfo(statusEl, payload.ok ? "Update complete" : "Update failed", payload.ok);
+        await loadStatus();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    });
+
+    (async () => {
+      const user = await NodeWings.initPage("Admin Updates", { adminOnly: true });
+      if (!user) return;
+      try {
+        await loadStatus();
+      } catch (error) {
+        NodeWings.showError(statusEl, error.message);
+      }
+    })();
+  </script>
+</body>
+</html>
